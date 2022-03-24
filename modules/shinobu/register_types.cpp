@@ -12,6 +12,9 @@ void register_shinobu_types() {
 	ClassDB::register_class<ShinobuGodotAudioFile>();
 	ClassDB::register_virtual_class<ShinobuGodotSoundPlayback>();
 	shinobu_ptr = memnew(ShinobuGodot);
+#ifdef TOOLS_ENABLED
+		shinobu_ptr->initialize();
+#endif
 	ClassDB::register_class<ShinobuGodot>();
 	Engine::get_singleton()->add_singleton(Engine::Singleton("ShinobuGodot", ShinobuGodot::get_singleton()));
 }
