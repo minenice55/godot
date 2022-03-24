@@ -110,11 +110,11 @@ public:
         uint32_t sample_rate;
         ma_sound_get_data_format(sound, NULL, NULL, &sample_rate, NULL, 0);
         if (result == SH_SUCCESS) {
-           out_pos = pos_frames / (sample_rate / 1000);
+           out_pos = pos_frames / (float)(sample_rate/ 1000.0f);
         }
         
         // This allows the return of negative playback time
-        uint64_t dsp_time = ma_engine_get_time(engine) / (ma_engine_get_sample_rate(engine) / 1000);
+        uint64_t dsp_time = ma_engine_get_time(engine) / (float)(ma_engine_get_sample_rate(engine) / 1000.0f);
 
         if (!is_playing() && start_time_msec > dsp_time) {
             return dsp_time - start_time_msec + out_pos;
@@ -132,7 +132,7 @@ public:
         ma_sound_get_length_in_pcm_frames(sound, &p_length);
         uint32_t sample_rate;
         ma_sound_get_data_format(sound, NULL, NULL, &sample_rate, NULL, 0);
-        p_length /= sample_rate / 1000;
+        p_length /= (float)(sample_rate / 1000.0f);
         cached_length = p_length;
 
         return p_length;

@@ -91,6 +91,7 @@ SH_RESULT ShinobuAudio::initialize() {
     ma_device_config device_config = ma_device_config_init(ma_device_type_playback);
     device_config.pUserData = this;
     device_config.dataCallback = ma_data_callback;
+    device_config.playback.format = ma_format_f32;
     device_config.performanceProfile = ma_performance_profile_low_latency;
     device_config.noFixedSizedCallback = MA_TRUE;
     device_config.periodSizeInMilliseconds = buffer_size;
