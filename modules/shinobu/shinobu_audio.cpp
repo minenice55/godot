@@ -86,6 +86,7 @@ static ma_decoding_backend_vtable g_ma_decoding_backend_vtable_libvorbis =
 };
 
 SH_RESULT ShinobuAudio::initialize() {
+    clock->measure();
     ma_result result;
     is_initialized = true;
     ma_device_config device_config = ma_device_config_init(ma_device_type_playback);
@@ -237,7 +238,7 @@ SH_RESULT ShinobuAudio::fire_and_forget_sound(std::string sound_name, std::strin
 }
 
 std::unique_ptr<ShinobuSoundPlayback> ShinobuAudio::instantiate_sound(std::string name, std::string group_name) {
-    return std::make_unique<ShinobuSoundPlayback>(engine, name, get_ma_group(group_name));
+    return std::make_unique<ShinobuSoundPlayback>(engine, name, get_ma_group(group_name), clock);
 }
 
 SH_RESULT ShinobuAudio::set_master_volume(float linear_volume) {
@@ -268,6 +269,7 @@ void ShinobuAudio::ma_data_callback(ma_device* pDevice, void* pOutput, const voi
     ShinobuAudio* shinobu = (ShinobuAudio*)pDevice->pUserData;
     if (shinobu != NULL) {
         ma_engine_read_pcm_frames(shinobu->engine, pOutput, frameCount, NULL);
+        shinobu->clock->measure();
     }
 }
 
@@ -275,6 +277,7 @@ ShinobuAudio::ShinobuAudio() {
     engine = new ma_engine;
     device = new ma_device;
     resource_manager = new ma_resource_manager;
+    clock = new ShinobuClock();
 }
 
 ShinobuAudio::~ShinobuAudio() {
@@ -284,4 +287,5 @@ ShinobuAudio::~ShinobuAudio() {
     delete engine;
     delete device;
     delete resource_manager;
+    delete clock;
 }

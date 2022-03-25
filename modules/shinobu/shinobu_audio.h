@@ -7,10 +7,30 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <chrono>
+#include <atomic>
 
 #define SH_RESULT ma_result
 #define SH_SUCCESS MA_SUCCESS
 
+typedef std::atomic<std::chrono::high_resolution_clock::time_point> shinobu_atomic_time;
+
+class ShinobuClock {
+    shinobu_atomic_time last_recorded_time;
+
+public:
+    ShinobuClock() : last_recorded_time() {}
+
+    uint64_t get_current_offset_msec() {
+        std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_recorded_time.load(std::memory_order_seq_cst));
+        return diff.count();
+    }
+
+    void measure() {
+        last_recorded_time.store(std::chrono::high_resolution_clock::now(), std::memory_order_seq_cst);
+    }
+};
 class ShinobuSoundGroup {
     ma_sound_group *sound_group;
     SH_RESULT result;
@@ -50,9 +70,10 @@ class ShinobuSoundPlayback {
     uint64_t start_time_msec = 0;
     uint64_t cached_length = -1;
     bool looping = false;
+    ShinobuClock *clock;
 public:
-    ShinobuSoundPlayback(ma_engine *engine, std::string name, ma_sound_group *sound_group)
-    : engine(engine) {
+    ShinobuSoundPlayback(ma_engine *engine, std::string name, ma_sound_group *sound_group, ShinobuClock *clock)
+    : engine(engine), clock(clock) {
         sound = new ma_sound;
         result = ma_sound_init_from_file(engine, name.c_str(), 0, sound_group, NULL, sound);
     }
@@ -120,6 +141,10 @@ public:
             return dsp_time - start_time_msec + out_pos;
         }
 
+        if (is_playing()) {
+            out_pos += clock->get_current_offset_msec();
+        }
+
         return out_pos;
     }
 
@@ -165,6 +190,7 @@ private:
     ma_resource_manager *resource_manager;
     uint64_t buffer_size = 10;
     bool is_initialized = false;
+    ShinobuClock *clock;
 
     float master_volume = 1.0f;
     static void ma_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
