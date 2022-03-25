@@ -13,22 +13,26 @@
 #define SH_RESULT ma_result
 #define SH_SUCCESS MA_SUCCESS
 
-typedef std::atomic<std::chrono::high_resolution_clock::time_point> shinobu_atomic_time;
+typedef std::chrono::milliseconds milliseconds;
 
 class ShinobuClock {
-    shinobu_atomic_time last_recorded_time;
+    std::atomic<uint64_t> last_recorded_time;
 
 public:
-    ShinobuClock() : last_recorded_time() {}
+    ShinobuClock() {
+        std::atomic_init(&last_recorded_time, (uint64_t)0);
+    }
 
     uint64_t get_current_offset_msec() {
         std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_recorded_time.load(std::memory_order_seq_cst));
+        std::chrono::high_resolution_clock::time_point lrt(milliseconds(last_recorded_time.load(std::memory_order_seq_cst)));
+        auto diff = std::chrono::duration_cast<milliseconds>(now - lrt);
         return diff.count();
     }
 
     void measure() {
-        last_recorded_time.store(std::chrono::high_resolution_clock::now(), std::memory_order_seq_cst);
+        uint64_t ms_count = std::chrono::time_point_cast<milliseconds>(std::chrono::high_resolution_clock::now()).time_since_epoch().count();
+        last_recorded_time.store(ms_count, std::memory_order_seq_cst);
     }
 };
 class ShinobuSoundGroup {
@@ -68,7 +72,7 @@ class ShinobuSoundPlayback {
     ma_engine *engine;
     SH_RESULT result;
     uint64_t start_time_msec = 0;
-    uint64_t cached_length = -1;
+    int64_t cached_length = -1;
     bool looping = false;
     ShinobuClock *clock;
 public:
