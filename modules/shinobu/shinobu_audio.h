@@ -98,7 +98,7 @@ public:
         }
         uint32_t sample_rate;
         ma_sound_get_data_format(sound, NULL, NULL, &sample_rate, NULL, 0);
-        return ma_sound_seek_to_pcm_frame(sound, to_time_msec * (sample_rate / 1000));
+        return ma_sound_seek_to_pcm_frame(sound, to_time_msec * (float)(sample_rate / 1000.0f));
     }
 
     bool is_playing() {

@@ -157,7 +157,7 @@ SH_RESULT ShinobuAudio::initialize() {
 }
 
 uint64_t ShinobuAudio::get_dsp_time() const {
-    return ma_engine_get_time(engine) / (ma_engine_get_sample_rate(engine) / 1000);
+    return ma_engine_get_time(engine) / (float)(ma_engine_get_sample_rate(engine) / 1000.0f);
 }
 
 SH_RESULT ShinobuAudio::register_sound_from_memory(std::string name, const void* data, size_t size) {
