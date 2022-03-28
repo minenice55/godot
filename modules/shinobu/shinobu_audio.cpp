@@ -7,6 +7,7 @@
 #define MA_NO_OPUS      /* Disable the (not yet implemented) built-in Opus decoder to ensure the libopus decoder is picked. */
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
+#include "shinobu_spectrum_analyzer.h"
 #include "miniaudio/extras/miniaudio_libvorbis.h"
 
 #include "shinobu_sound_data.h"
@@ -93,9 +94,12 @@ SH_RESULT ShinobuAudio::initialize() {
     device_config.pUserData = this;
     device_config.dataCallback = ma_data_callback;
     device_config.playback.format = ma_format_f32;
+    device_config.playback.channels = 2;
     device_config.performanceProfile = ma_performance_profile_low_latency;
-    device_config.noFixedSizedCallback = MA_TRUE;
-    device_config.periodSizeInMilliseconds = buffer_size;
+    if (buffer_size > 0) {
+        device_config.noFixedSizedCallback = MA_TRUE;
+        device_config.periodSizeInMilliseconds = buffer_size;
+    }
     // This is necessary to enable WASAPI low latency mode
     device_config.wasapi.noAutoConvertSRC = true;
 
@@ -107,7 +111,10 @@ SH_RESULT ShinobuAudio::initialize() {
 
     ma_engine_config engine_config = ma_engine_config_init();
     engine_config.pDevice = device;
-    engine_config.periodSizeInMilliseconds = buffer_size;
+    engine_config.channels = 2;
+    if (buffer_size > 0) {
+        engine_config.periodSizeInMilliseconds = buffer_size;
+    }
 
     // Setup libvorbis
 
@@ -171,9 +178,10 @@ SH_RESULT ShinobuAudio::register_sound_from_memory(std::string name, const void*
     return result;
 }
 
-SH_RESULT ShinobuAudio::register_group(std::string name) {
-    std::unique_ptr<ShinobuSoundGroup> group = std::make_unique<ShinobuSoundGroup>(engine, name);
+SH_RESULT ShinobuAudio::register_group(std::string name, std::string parent_group_name) {
+    std::unique_ptr<ShinobuSoundGroup> group = std::make_unique<ShinobuSoundGroup>(engine, name, get_ma_group(parent_group_name));
     SH_RESULT result = group->get_result();
+
     if (result == MA_SUCCESS) {
         sound_groups.emplace(name, std::move(group));
     }
@@ -264,6 +272,21 @@ uint64_t ShinobuAudio::get_buffer_size() const {
     return buffer_size;
 }
 
+ma_engine* ShinobuAudio::get_engine() {
+    return engine;
+}
+
+uint64_t ShinobuAudio::connect_group_to_effect(std::string group_name, ShinobuAudioEffect* effect) {
+    ShinobuSoundGroup* group = get_group(group_name);
+    ma_sound_group *ma_group = NULL;
+    if (group != NULL) {
+        printf("FOUND GROUP %s, connecting...\n", group_name.c_str());
+        ma_group = group->get_sound_group();
+        printf("effect: in %d out %d\n", ma_node_get_input_bus_count(effect->get_node()), ma_node_get_output_bus_count(effect->get_node()));
+        return ma_node_attach_output_bus(ma_group, 0, effect->get_node(), 0);
+    }
+    return MA_BAD_ADDRESS;
+}
 
 void ShinobuAudio::ma_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ShinobuAudio* shinobu = (ShinobuAudio*)pDevice->pUserData;

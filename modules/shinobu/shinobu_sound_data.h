@@ -48,7 +48,7 @@ class ShinobuSoundSourceFile : public ShinobuSoundSource {
 public:
     ShinobuSoundSourceFile(ma_engine *engine, std::string file_path)
     : ShinobuSoundSource(engine, file_path) {
-        result = ma_resource_manager_register_file(ma_engine_get_resource_manager(engine), name.c_str(), NULL);
+        result = ma_resource_manager_register_file(ma_engine_get_resource_manager(engine), name.c_str(), 0);
     }
     ~ShinobuSoundSourceFile() {
         ma_resource_manager_unregister_file(ma_engine_get_resource_manager(engine), name.c_str());

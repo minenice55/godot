@@ -7,6 +7,38 @@
 #include "core/reference.h"
 #include <vector>
 
+class ShinobuGodotEffect : public Reference {
+    GDCLASS(ShinobuGodotEffect, Reference);
+public:
+    virtual ShinobuAudioEffect* get_effect() = 0;
+};
+
+class ShinobuGodotEffectSpectrumAnalyzer : public ShinobuGodotEffect {
+    GDCLASS(ShinobuGodotEffectSpectrumAnalyzer, ShinobuGodotEffect);
+    std::unique_ptr<ShinobuSpectrumAnalyzer> spectrum_analyzer;
+    bool initialized;
+protected:
+    static void _bind_methods() {
+        ClassDB::bind_method(D_METHOD("get_magnitude_for_frequency_range", "begin", "end", "mode"), &ShinobuGodotEffectSpectrumAnalyzer::get_magnitude_for_frequency_range, DEFVAL(MAGNITUDE_MAX));
+        BIND_ENUM_CONSTANT(MAGNITUDE_AVERAGE);
+        BIND_ENUM_CONSTANT(MAGNITUDE_MAX);
+    }
+public:
+    ShinobuGodotEffectSpectrumAnalyzer(std::unique_ptr<ShinobuSpectrumAnalyzer> spectrum_analyzer) 
+    : spectrum_analyzer(std::move(spectrum_analyzer)) {}
+    
+    ShinobuAudioEffect* get_effect() override {
+        return spectrum_analyzer.get();
+    }
+
+    Vector2 get_magnitude_for_frequency_range(float m_begin, float m_end, ma_spectrum_magnitude_mode mode = MAGNITUDE_MAX) {
+        MagnitudeResult res = spectrum_analyzer->get_magnitude_for_frequency_range(m_begin, m_end, mode);
+        return Vector2(res.l, res.r);
+    }
+};
+
+VARIANT_ENUM_CAST(ma_spectrum_magnitude_mode);
+
 class ShinobuGodotSoundPlayback : public Reference {
     GDCLASS(ShinobuGodotSoundPlayback, Reference)
     std::unique_ptr<ShinobuSoundPlayback> playback;
@@ -15,6 +47,8 @@ protected:
         ClassDB::bind_method(D_METHOD("start"), &ShinobuGodotSoundPlayback::start);
         ClassDB::bind_method(D_METHOD("stop"), &ShinobuGodotSoundPlayback::stop);
         ClassDB::bind_method(D_METHOD("set_pitch_scale", "pitch_scale"), &ShinobuGodotSoundPlayback::set_pitch_scale);
+        ClassDB::bind_method(D_METHOD("get_pitch_scale"), &ShinobuGodotSoundPlayback::get_pitch_scale);
+	    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "pitch_scale"), "set_pitch_scale", "get_pitch_scale");
         ClassDB::bind_method(D_METHOD("schedule_start_time", "global_time_msec"), &ShinobuGodotSoundPlayback::schedule_start_time);
         ClassDB::bind_method(D_METHOD("schedule_stop_time", "global_time_msec"), &ShinobuGodotSoundPlayback::schedule_stop_time);
         ClassDB::bind_method(D_METHOD("get_playback_position_msec"), &ShinobuGodotSoundPlayback::get_playback_position_msec);
@@ -27,6 +61,7 @@ protected:
         ClassDB::bind_method(D_METHOD("get_looping_enabled"), &ShinobuGodotSoundPlayback::get_looping_enabled);
         ClassDB::bind_method(D_METHOD("set_looping_enabled", "looping_enabled"), &ShinobuGodotSoundPlayback::set_looping_enabled);
 	    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "looping_enabled"), "set_looping_enabled", "get_looping_enabled");
+        ClassDB::bind_method(D_METHOD("connect_sound_to_effect", "effect"), &ShinobuGodotSoundPlayback::connect_sound_to_effect);
     }
 public:
     ShinobuGodotSoundPlayback(std::unique_ptr<ShinobuSoundPlayback> playback) 
@@ -42,6 +77,10 @@ public:
 
     void set_pitch_scale(float pitch_scale) {
         playback->set_pitch_scale(pitch_scale);
+    }
+
+    float get_pitch_scale() const {
+        return playback->get_pitch_scale();
     }
 
     void schedule_start_time(uint64_t global_time_msec) {
@@ -77,6 +116,10 @@ public:
 
     bool get_looping_enabled() const {
         return playback->get_looping_enabled();
+    }
+
+    int64_t connect_sound_to_effect(Ref<ShinobuGodotEffect> m_effect) {
+        return playback->connect_effect(m_effect->get_effect());
     }
 };
 
@@ -137,7 +180,7 @@ public:
     uint64_t initialize();
 
     uint64_t get_dsp_time() const;
-    int64_t register_group(String m_group_name);
+    int64_t register_group(String m_group_name, String m_parent_group_name = "");
     Error register_sound_from_path(String m_path, String m_sound_name);
     int64_t register_sound(Ref<ShinobuGodotAudioFile> audio_file, String m_sound_name);
     void unregister_sound(String m_sound_name);
@@ -151,6 +194,10 @@ public:
 
     void set_buffer_size(uint64_t m_buffer_size);
     uint64_t get_buffer_size() const;
+
+    Ref<ShinobuGodotEffectSpectrumAnalyzer> instantiate_spectrum_analyzer();
+
+    uint64_t connect_group_to_effect(String m_group_name, Ref<ShinobuGodotEffect> m_effect);
 
     ShinobuGodot();
     ~ShinobuGodot();

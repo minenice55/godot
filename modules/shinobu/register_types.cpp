@@ -11,6 +11,8 @@ static ShinobuGodot *shinobu_ptr = NULL;
 void register_shinobu_types() {
 	ClassDB::register_class<ShinobuGodotAudioFile>();
 	ClassDB::register_virtual_class<ShinobuGodotSoundPlayback>();
+	ClassDB::register_virtual_class<ShinobuGodotEffect>();
+	ClassDB::register_virtual_class<ShinobuGodotEffectSpectrumAnalyzer>();
 	shinobu_ptr = memnew(ShinobuGodot);
 #ifdef TOOLS_ENABLED
 	// Shinobu has to be initialized manually from GDSCript, but we can't do it

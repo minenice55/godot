@@ -10,14 +10,61 @@
 #include <chrono>
 #include <atomic>
 
+#include "shinobu_spectrum_analyzer.h"
+
 #define SH_RESULT ma_result
 #define SH_SUCCESS MA_SUCCESS
 
 typedef std::chrono::milliseconds milliseconds;
 
+class ShinobuAudioEffect {
+protected:
+    bool initialized;
+    ma_engine *engine;
+public:
+    virtual uint64_t initialize(uint32_t channelCount) = 0;
+    virtual uint64_t connect_to_node(ma_node* node) = 0;
+    ShinobuAudioEffect(ma_engine *engine) : initialized(false), engine(engine) {};
+    virtual ~ShinobuAudioEffect() {};
+    virtual ma_node* get_node() = 0;
+};
+
+class ShinobuSpectrumAnalyzer : public ShinobuAudioEffect {
+    ma_spectrum_analyzer_node* analyzer_node;
+public:
+    ShinobuSpectrumAnalyzer(ma_engine *engine) : ShinobuAudioEffect(engine) {
+        analyzer_node = new ma_spectrum_analyzer_node;
+    }
+
+    uint64_t initialize(uint32_t channelCount) override {
+        ma_spectrum_analyzer_config spectrumConfig = ma_spectrum_analyzer_config_init(ma_engine_get_sample_rate(engine));
+        ma_result result = ma_spectrum_analyzer_node_init(ma_engine_get_node_graph(engine), &spectrumConfig, NULL, analyzer_node);
+        initialized = true;
+        return result;
+    }
+
+    uint64_t connect_to_node(ma_node* node) override {
+        ma_result res = ma_node_attach_output_bus(analyzer_node, 0, node, 0);
+        return res;
+    }
+
+    ma_node* get_node() override {
+        return (ma_node*)analyzer_node;
+    }
+
+    MagnitudeResult get_magnitude_for_frequency_range(float pBegin, float pEnd, ma_spectrum_magnitude_mode mode = MAGNITUDE_MAX) {
+        return ma_spectrum_analyzer_get_magnitude_for_frequency_range(pBegin, pEnd, mode, analyzer_node);
+    }
+
+    ~ShinobuSpectrumAnalyzer() {
+        ma_spectrum_analyzer_node_uninit(analyzer_node, NULL);
+        delete analyzer_node;
+    }
+};
+
 class ShinobuClock {
     std::atomic<uint64_t> last_recorded_time;
-
+    
 public:
     ShinobuClock() {
         std::atomic_init(&last_recorded_time, (uint64_t)0);
@@ -40,10 +87,10 @@ class ShinobuSoundGroup {
     SH_RESULT result;
     std::string name;
 public:
-    ShinobuSoundGroup(ma_engine *engine, std::string name)
+    ShinobuSoundGroup(ma_engine *engine, std::string name, ma_sound_group* parent_group)
     : name(name) {
         sound_group = new ma_sound_group;
-        result = ma_sound_group_init(engine, NULL, NULL, sound_group);
+        result = ma_sound_group_init(engine, 0, parent_group, sound_group);
     }
 
     SH_RESULT get_result() {
@@ -117,6 +164,10 @@ public:
         ma_sound_set_pitch(sound, pitch_scale);
     }
 
+    float get_pitch_scale() const {
+        return ma_sound_get_pitch(sound);
+    }
+
     void schedule_start_time(uint64_t global_time_msec) {
         start_time_msec = global_time_msec;
         ma_sound_set_start_time_in_milliseconds(sound, global_time_msec);
@@ -184,6 +235,10 @@ public:
         return looping;
     }
 
+    uint64_t connect_effect(ShinobuAudioEffect* m_effect) {
+        return ma_node_attach_output_bus(sound, 0, m_effect->get_node(), 0);
+    }
+
 };
 class ShinobuAudio {
 private:
@@ -205,7 +260,7 @@ public:
     uint64_t get_dsp_time() const;
 
     SH_RESULT register_sound_from_memory(std::string name, const void* data, size_t size);
-    SH_RESULT register_group(std::string name);
+    SH_RESULT register_group(std::string name, std::string parent_group_name = "");
     void unregister_sound(std::string name);
 
     SH_RESULT fire_and_forget_sound(std::string sound_name, std::string group_name);
@@ -220,6 +275,10 @@ public:
 
     uint64_t get_buffer_size() const;
     void set_buffer_size(uint64_t new_buffer_size);
+
+    ma_engine* get_engine();
+
+    uint64_t connect_group_to_effect(std::string group_name, ShinobuAudioEffect* effect);
 
     ShinobuAudio();
     ~ShinobuAudio();
