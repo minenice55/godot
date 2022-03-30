@@ -20,6 +20,7 @@ void ShinobuGodot::_bind_methods() {
     ClassDB::bind_method(D_METHOD("initialize"), &ShinobuGodot::initialize);
     ClassDB::bind_method(D_METHOD("instantiate_spectrum_analyzer"), &ShinobuGodot::instantiate_spectrum_analyzer);
     ClassDB::bind_method(D_METHOD("connect_group_to_effect", "group_name", "effect"), &ShinobuGodot::connect_group_to_effect);
+    ClassDB::bind_method(D_METHOD("get_actual_buffer_size"), &ShinobuGodot::get_actual_buffer_size);
 }
 
 uint64_t ShinobuGodot::get_dsp_time() const {
@@ -98,6 +99,9 @@ uint64_t ShinobuGodot::connect_group_to_effect(String m_group_name, Ref<ShinobuG
     return shinobu->connect_group_to_effect(m_group_name.utf8().get_data(), m_effect->get_effect());
 }
 
+uint64_t ShinobuGodot::get_actual_buffer_size() const {
+    return shinobu->get_actual_buffer_size();
+}
 
 uint64_t ShinobuGodot::initialize() {
     return shinobu->initialize();

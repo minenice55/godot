@@ -276,6 +276,8 @@ public:
     uint64_t get_buffer_size() const;
     void set_buffer_size(uint64_t new_buffer_size);
 
+    uint64_t get_actual_buffer_size() const;
+
     ma_engine* get_engine();
 
     uint64_t connect_group_to_effect(std::string group_name, ShinobuAudioEffect* effect);

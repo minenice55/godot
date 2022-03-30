@@ -199,6 +199,8 @@ public:
 
     uint64_t connect_group_to_effect(String m_group_name, Ref<ShinobuGodotEffect> m_effect);
 
+    uint64_t get_actual_buffer_size() const;
+
     ShinobuGodot();
     ~ShinobuGodot();
 };

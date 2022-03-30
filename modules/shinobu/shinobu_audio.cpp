@@ -97,7 +97,6 @@ SH_RESULT ShinobuAudio::initialize() {
     device_config.playback.channels = 2;
     device_config.performanceProfile = ma_performance_profile_low_latency;
     if (buffer_size > 0) {
-        device_config.noFixedSizedCallback = MA_TRUE;
         device_config.periodSizeInMilliseconds = buffer_size;
     }
     // This is necessary to enable WASAPI low latency mode
@@ -270,6 +269,10 @@ void ShinobuAudio::set_buffer_size(uint64_t new_buffer_size) {
 
 uint64_t ShinobuAudio::get_buffer_size() const {
     return buffer_size;
+}
+
+uint64_t ShinobuAudio::get_actual_buffer_size() const {
+    return device->playback.internalPeriodSizeInFrames / (double)(device->playback.internalSampleRate / 1000.0);
 }
 
 ma_engine* ShinobuAudio::get_engine() {
