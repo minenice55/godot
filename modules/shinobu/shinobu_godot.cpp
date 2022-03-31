@@ -21,6 +21,10 @@ void ShinobuGodot::_bind_methods() {
     ClassDB::bind_method(D_METHOD("instantiate_spectrum_analyzer"), &ShinobuGodot::instantiate_spectrum_analyzer);
     ClassDB::bind_method(D_METHOD("connect_group_to_effect", "group_name", "effect"), &ShinobuGodot::connect_group_to_effect);
     ClassDB::bind_method(D_METHOD("get_actual_buffer_size"), &ShinobuGodot::get_actual_buffer_size);
+	ClassDB::bind_method(D_METHOD("instantiate_pitch_shift"), &ShinobuGodot::instantiate_pitch_shift);
+	ClassDB::bind_method(D_METHOD("connect_effect_to_endpoint", "effect"), &ShinobuGodot::connect_effect_to_endpoint);
+	ClassDB::bind_method(D_METHOD("connect_group_to_endpoint", "group_name"), &ShinobuGodot::connect_group_to_endpoint);
+
 }
 
 uint64_t ShinobuGodot::get_dsp_time() const {
@@ -58,6 +62,7 @@ Ref<ShinobuGodotSoundPlayback> ShinobuGodot::instantiate_sound(String sound_name
     return out;
 }
 
+
 int64_t ShinobuGodot::fire_and_forget_sound(String sound_name, String group_name) {
     return shinobu->fire_and_forget_sound(sound_name.utf8().get_data(), group_name.utf8().get_data());
 }
@@ -70,7 +75,7 @@ float ShinobuGodot::get_group_volume(String name) {
     return shinobu->get_group_volume(name.utf8().get_data());
 }
 
-uint64_t ShinobuGodot::set_master_volume(float linear_volume) {
+int64_t ShinobuGodot::set_master_volume(float linear_volume) {
     return shinobu->set_master_volume(linear_volume);
 }
 
@@ -95,12 +100,29 @@ Ref<ShinobuGodotEffectSpectrumAnalyzer> ShinobuGodot::instantiate_spectrum_analy
     return out;
 }
 
+Ref<ShinobuGodotEffectPitchShift> ShinobuGodot::instantiate_pitch_shift() {
+    std::unique_ptr<ShinobuPitchShift> pitch_shift = std::make_unique<ShinobuPitchShift>(shinobu->get_engine());
+    pitch_shift->initialize(2);
+    pitch_shift->connect_to_node(ma_engine_get_endpoint(shinobu->get_engine()));
+    ShinobuGodotEffectPitchShift* godot_pitch_shift = memnew(ShinobuGodotEffectPitchShift(std::move(pitch_shift)));
+    Ref<ShinobuGodotEffectPitchShift> out(godot_pitch_shift);
+    return out;
+}
+
 uint64_t ShinobuGodot::connect_group_to_effect(String m_group_name, Ref<ShinobuGodotEffect> m_effect) {
     return shinobu->connect_group_to_effect(m_group_name.utf8().get_data(), m_effect->get_effect());
 }
 
 uint64_t ShinobuGodot::get_actual_buffer_size() const {
     return shinobu->get_actual_buffer_size();
+}
+
+int64_t ShinobuGodot::connect_effect_to_endpoint(Ref<ShinobuGodotEffect> m_effect) {
+    return m_effect->get_effect()->connect_to_node(ma_engine_get_endpoint(shinobu->get_engine()));
+}
+
+int64_t ShinobuGodot::connect_group_to_endpoint(String m_group_name) {
+    return shinobu->connect_group_to_endpoint(m_group_name.utf8().get_data());
 }
 
 uint64_t ShinobuGodot::initialize() {

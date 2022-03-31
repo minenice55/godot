@@ -8,6 +8,7 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 #include "shinobu_spectrum_analyzer.h"
+#include "shinobu_pitch_shift.h"
 #include "miniaudio/extras/miniaudio_libvorbis.h"
 
 #include "shinobu_sound_data.h"
@@ -283,13 +284,22 @@ uint64_t ShinobuAudio::connect_group_to_effect(std::string group_name, ShinobuAu
     ShinobuSoundGroup* group = get_group(group_name);
     ma_sound_group *ma_group = NULL;
     if (group != NULL) {
-        printf("FOUND GROUP %s, connecting...\n", group_name.c_str());
         ma_group = group->get_sound_group();
-        printf("effect: in %d out %d\n", ma_node_get_input_bus_count(effect->get_node()), ma_node_get_output_bus_count(effect->get_node()));
         return ma_node_attach_output_bus(ma_group, 0, effect->get_node(), 0);
     }
     return MA_BAD_ADDRESS;
 }
+
+uint64_t ShinobuAudio::connect_group_to_endpoint(std::string group_name) {
+    ShinobuSoundGroup* group = get_group(group_name);
+    ma_sound_group *ma_group = NULL;
+    if (group != NULL) {
+        ma_group = group->get_sound_group();
+        return ma_node_attach_output_bus(ma_group, 0, ma_engine_get_endpoint(engine), 0);
+    }
+    return MA_BAD_ADDRESS;
+}
+
 
 void ShinobuAudio::ma_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ShinobuAudio* shinobu = (ShinobuAudio*)pDevice->pUserData;

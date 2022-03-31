@@ -11,6 +11,7 @@
 #include <atomic>
 
 #include "shinobu_spectrum_analyzer.h"
+#include "shinobu_pitch_shift.h"
 
 #define SH_RESULT ma_result
 #define SH_SUCCESS MA_SUCCESS
@@ -22,8 +23,8 @@ protected:
     bool initialized;
     ma_engine *engine;
 public:
-    virtual uint64_t initialize(uint32_t channelCount) = 0;
-    virtual uint64_t connect_to_node(ma_node* node) = 0;
+    virtual int64_t initialize(uint32_t channelCount) = 0;
+    virtual int64_t connect_to_node(ma_node* node) = 0;
     ShinobuAudioEffect(ma_engine *engine) : initialized(false), engine(engine) {};
     virtual ~ShinobuAudioEffect() {};
     virtual ma_node* get_node() = 0;
@@ -36,14 +37,14 @@ public:
         analyzer_node = new ma_spectrum_analyzer_node;
     }
 
-    uint64_t initialize(uint32_t channelCount) override {
+    int64_t initialize(uint32_t channelCount) override {
         ma_spectrum_analyzer_config spectrumConfig = ma_spectrum_analyzer_config_init(ma_engine_get_sample_rate(engine));
         ma_result result = ma_spectrum_analyzer_node_init(ma_engine_get_node_graph(engine), &spectrumConfig, NULL, analyzer_node);
         initialized = true;
         return result;
     }
 
-    uint64_t connect_to_node(ma_node* node) override {
+    int64_t connect_to_node(ma_node* node) override {
         ma_result res = ma_node_attach_output_bus(analyzer_node, 0, node, 0);
         return res;
     }
@@ -59,6 +60,43 @@ public:
     ~ShinobuSpectrumAnalyzer() {
         ma_spectrum_analyzer_node_uninit(analyzer_node, NULL);
         delete analyzer_node;
+    }
+};
+
+class ShinobuPitchShift : public ShinobuAudioEffect {
+    ma_pitch_shift_node *shift_node;
+public:
+    int64_t initialize(uint32_t channelCount) override {
+        ma_pitch_shift_node_config pitchShiftconfig = ma_pitch_shift_node_config_init(ma_engine_get_sample_rate(engine));
+        ma_result result = ma_pitch_shift_node_init(ma_engine_get_node_graph(engine), &pitchShiftconfig, NULL, shift_node);
+        initialized = true;
+        return result;
+    }
+
+    ShinobuPitchShift(ma_engine *engine) : ShinobuAudioEffect(engine) {
+        shift_node = new ma_pitch_shift_node;
+    }
+
+    ma_node* get_node() override {
+        return (ma_node*)shift_node;
+    }
+
+    void set_pitch_scale(float pitch_scale) {
+        ma_pitch_shift_node_set_pitch_scale(shift_node, pitch_scale);
+    }
+
+    float get_pitch_scale() {
+        return ma_pitch_shift_node_get_pitch_scale(shift_node);
+    }
+
+    int64_t connect_to_node(ma_node* node) override {
+        ma_result res = ma_node_attach_output_bus(shift_node, 0, node, 0);
+        return res;
+    }
+
+    ~ShinobuPitchShift() {
+        ma_pitch_shift_node_uninit(shift_node, NULL);
+        delete shift_node;
     }
 };
 
@@ -281,6 +319,7 @@ public:
     ma_engine* get_engine();
 
     uint64_t connect_group_to_effect(std::string group_name, ShinobuAudioEffect* effect);
+    uint64_t connect_group_to_endpoint(std::string group_name);
 
     ShinobuAudio();
     ~ShinobuAudio();
