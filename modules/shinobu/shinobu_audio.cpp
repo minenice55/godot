@@ -10,6 +10,7 @@
 #include "shinobu_spectrum_analyzer.h"
 #include "shinobu_pitch_shift.h"
 #include "miniaudio/extras/miniaudio_libvorbis.h"
+#include "core/os/os.h"
 
 #include "shinobu_sound_data.h"
 
@@ -87,7 +88,7 @@ static ma_decoding_backend_vtable g_ma_decoding_backend_vtable_libvorbis =
     ma_decoding_backend_uninit__libvorbis
 };
 
-SH_RESULT ShinobuAudio::initialize() {
+SH_RESULT ShinobuAudio::initialize(ma_backend forced_backend) {
     clock->measure();
     ma_result result;
     is_initialized = true;
@@ -103,7 +104,22 @@ SH_RESULT ShinobuAudio::initialize() {
     // This is necessary to enable WASAPI low latency mode
     device_config.wasapi.noAutoConvertSRC = true;
 
-    result = ma_device_init(NULL, &device_config, device);
+    ma_backend *backends = NULL;
+    uint64_t backend_count = 0;
+    
+    if (forced_backend != ma_backend_null) {
+        backend_count = 1;
+        backends = new ma_backend[1] {forced_backend};
+    }
+
+    result = ma_context_init(backends, 1, NULL, context);
+
+    if (result != MA_SUCCESS) {
+        printf("Context init failed\n");
+        return result;
+    }
+
+    result = ma_device_init(context, &device_config, device);
     if (result != MA_SUCCESS) {
         printf("Device init failed\n");
         return result;
@@ -112,6 +128,7 @@ SH_RESULT ShinobuAudio::initialize() {
     ma_engine_config engine_config = ma_engine_config_init();
     engine_config.pDevice = device;
     engine_config.channels = 2;
+    engine_config.pContext = context;
     if (buffer_size > 0) {
         engine_config.periodSizeInMilliseconds = buffer_size;
     }
@@ -135,14 +152,7 @@ SH_RESULT ShinobuAudio::initialize() {
     resourceManagerConfig.pCustomDecodingBackendUserData = NULL;
     resourceManagerConfig.decodedFormat = ma_format_f32;
 
-    // HACK: Dry run the engine to figure out the correct sample rate for the source manager
-
-    ma_engine_init(&engine_config, engine);
-    resourceManagerConfig.decodedSampleRate = ma_engine_get_sample_rate(engine);
-    ma_engine_uninit(engine);
-
-
-
+    resourceManagerConfig.decodedSampleRate = device->sampleRate;
 
     result = ma_resource_manager_init(&resourceManagerConfig, resource_manager);
 
@@ -300,6 +310,9 @@ uint64_t ShinobuAudio::connect_group_to_endpoint(std::string group_name) {
     return MA_BAD_ADDRESS;
 }
 
+std::string ShinobuAudio::get_current_backend_name() const {
+    return std::string(ma_get_backend_name(context->backend));
+}
 
 void ShinobuAudio::ma_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ShinobuAudio* shinobu = (ShinobuAudio*)pDevice->pUserData;
@@ -314,14 +327,17 @@ ShinobuAudio::ShinobuAudio() {
     device = new ma_device;
     resource_manager = new ma_resource_manager;
     clock = new ShinobuClock();
+    context = new ma_context;
 }
 
 ShinobuAudio::~ShinobuAudio() {
     ma_engine_uninit(engine);
     ma_device_uninit(device);
     ma_resource_manager_uninit(resource_manager);
+    ma_context_uninit(context);
     delete engine;
     delete device;
     delete resource_manager;
     delete clock;
+    delete context;
 }

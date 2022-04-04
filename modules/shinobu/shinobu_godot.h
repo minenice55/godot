@@ -210,6 +210,7 @@ class ShinobuGodot : public Object {
 private:
 	static ShinobuGodot *singleton;
     ShinobuAudio *shinobu;
+    ma_backend string_to_backend(String str);
 protected:
 	static void _bind_methods();
 public:
@@ -241,6 +242,8 @@ public:
     uint64_t get_actual_buffer_size() const;
     int64_t connect_effect_to_endpoint(Ref<ShinobuGodotEffect> m_effect);
     int64_t connect_group_to_endpoint(String m_group_name);
+
+    String get_current_backend_name() const;
 
     ShinobuGodot();
     ~ShinobuGodot();

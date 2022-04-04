@@ -1,4 +1,5 @@
 #include "shinobu_godot.h"
+#include "core/os/os.h"
 
 ShinobuGodot *ShinobuGodot::singleton = nullptr;
 
@@ -24,6 +25,7 @@ void ShinobuGodot::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("instantiate_pitch_shift"), &ShinobuGodot::instantiate_pitch_shift);
 	ClassDB::bind_method(D_METHOD("connect_effect_to_endpoint", "effect"), &ShinobuGodot::connect_effect_to_endpoint);
 	ClassDB::bind_method(D_METHOD("connect_group_to_endpoint", "group_name"), &ShinobuGodot::connect_group_to_endpoint);
+	ClassDB::bind_method(D_METHOD("get_current_backend_name"), &ShinobuGodot::get_current_backend_name);
 
 }
 
@@ -125,8 +127,61 @@ int64_t ShinobuGodot::connect_group_to_endpoint(String m_group_name) {
     return shinobu->connect_group_to_endpoint(m_group_name.utf8().get_data());
 }
 
+ma_backend ShinobuGodot::string_to_backend(String str) {
+    str = str.to_lower();
+    if (str == "wasapi") {
+        return ma_backend_wasapi;
+    } else if (str == "directsound") {
+        return ma_backend_dsound;
+    } else if (str == "winmm") {
+        return ma_backend_winmm;
+    } else if (str == "coreaudio") {
+        return ma_backend_coreaudio;
+    } else if (str == "sndio") {
+        return ma_backend_sndio;
+    } else if (str == "audio4") {
+        return ma_backend_audio4;
+    } else if (str == "oss") {
+        return ma_backend_oss;
+    } else if (str == "pulseaudio") {
+        return ma_backend_pulseaudio;
+    } else if (str == "alsa") {
+        return ma_backend_alsa;
+    } else if (str == "jack") {
+        return ma_backend_jack;
+    } else if (str == "aaudio") {
+        return ma_backend_aaudio;
+    } else if (str == "opensl") {
+        return ma_backend_opensl;
+    } else if (str == "webaudio") {
+        return ma_backend_webaudio;
+    }
+    return ma_backend_null;
+}
+
 uint64_t ShinobuGodot::initialize() {
-    return shinobu->initialize();
+    List<String> args = OS::get_singleton()->get_cmdline_args();
+    ma_backend backend_to_force = ma_backend_null;
+
+    #ifdef X11_ENABLED
+    // PipeWire on deck sucks, lets check if we are on a deck and force alsa by default
+    String deck_variable = OS::get_singleton()->get_environment("SteamDeck");
+    if (!deck_variable.empty() && deck_variable.to_int64() > 0) {
+        backend_to_force = ma_backend_alsa;
+    }
+    #endif
+
+    for (int i = 0; i < args.size()-1; i++) {
+        if (args[i] == "--shinobu-backend") {
+            backend_to_force = string_to_backend(args[i+1]);
+        }
+    }
+    
+    return shinobu->initialize(backend_to_force);
+}
+
+String ShinobuGodot::get_current_backend_name() const {
+    return String(shinobu->get_current_backend_name().c_str());
 }
 
 ShinobuGodot::ShinobuGodot() {

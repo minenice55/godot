@@ -285,6 +285,7 @@ private:
     ma_engine *engine;
     ma_device *device;
     ma_resource_manager *resource_manager;
+    ma_context *context;
     uint64_t buffer_size = 10;
     bool is_initialized = false;
     ShinobuClock *clock;
@@ -303,7 +304,7 @@ public:
 
     SH_RESULT fire_and_forget_sound(std::string sound_name, std::string group_name);
     std::unique_ptr<ShinobuSoundPlayback> instantiate_sound(std::string name, std::string group_name);
-    SH_RESULT initialize();
+    SH_RESULT initialize(ma_backend forced_backend = ma_backend_null);
 
     void set_group_volume(std::string name, float linear_volume);
     float get_group_volume(std::string name);
@@ -320,6 +321,8 @@ public:
 
     uint64_t connect_group_to_effect(std::string group_name, ShinobuAudioEffect* effect);
     uint64_t connect_group_to_endpoint(std::string group_name);
+
+    std::string get_current_backend_name() const;
 
     ShinobuAudio();
     ~ShinobuAudio();
