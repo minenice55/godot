@@ -297,6 +297,7 @@ private:
     ShinobuSoundSource* get_sound_source(std::string name);
 public:
     uint64_t get_dsp_time() const;
+    void set_dsp_time(uint64_t new_time_msec);
 
     SH_RESULT register_sound_from_memory(std::string name, const void* data, size_t size);
     SH_RESULT register_group(std::string name, std::string parent_group_name = "");

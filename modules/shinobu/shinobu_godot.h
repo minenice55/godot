@@ -219,6 +219,7 @@ public:
     uint64_t initialize();
 
     uint64_t get_dsp_time() const;
+    void set_dsp_time(uint64_t m_new_time_msec);
     int64_t register_group(String m_group_name, String m_parent_group_name = "");
     Error register_sound_from_path(String m_path, String m_sound_name);
     int64_t register_sound(Ref<ShinobuGodotAudioFile> audio_file, String m_sound_name);

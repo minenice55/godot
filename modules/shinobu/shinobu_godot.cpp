@@ -5,6 +5,7 @@ ShinobuGodot *ShinobuGodot::singleton = nullptr;
 
 void ShinobuGodot::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_dsp_time"), &ShinobuGodot::get_dsp_time);
+	ClassDB::bind_method(D_METHOD("set_dsp_time", "new_time"), &ShinobuGodot::set_dsp_time);
 	ClassDB::bind_method(D_METHOD("register_group", "group_name", "parent_group_name"), &ShinobuGodot::register_group, DEFVAL(""));
 	ClassDB::bind_method(D_METHOD("register_sound_from_path", "path", "sound_name"), &ShinobuGodot::register_sound_from_path);
 	ClassDB::bind_method(D_METHOD("register_sound", "audio_file", "sound_name"), &ShinobuGodot::register_sound);
@@ -31,6 +32,10 @@ void ShinobuGodot::_bind_methods() {
 
 uint64_t ShinobuGodot::get_dsp_time() const {
     return shinobu->get_dsp_time();
+}
+
+void ShinobuGodot::set_dsp_time(uint64_t m_new_time_msec) {
+    shinobu->set_dsp_time(m_new_time_msec);
 }
 
 int64_t ShinobuGodot::register_group(String m_group_name, String m_parent_group_name) {

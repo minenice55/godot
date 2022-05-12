@@ -177,6 +177,10 @@ uint64_t ShinobuAudio::get_dsp_time() const {
     return ma_engine_get_time(engine) / (float)(ma_engine_get_sample_rate(engine) / 1000.0f);
 }
 
+void ShinobuAudio::set_dsp_time(uint64_t new_time_msec) {
+    ma_engine_set_time(engine, new_time_msec * (float)(ma_engine_get_sample_rate(engine) / 1000.0f));
+}
+
 SH_RESULT ShinobuAudio::register_sound_from_memory(std::string name, const void* data, size_t size) {
     // Ensure that if there is a song data with the same name that it is destroyed before replacing it
     sound_datas.erase(name);
@@ -331,9 +335,11 @@ ShinobuAudio::ShinobuAudio() {
 }
 
 ShinobuAudio::~ShinobuAudio() {
+    sound_datas.clear();
+    sound_groups.clear();
+    ma_resource_manager_uninit(resource_manager);
     ma_engine_uninit(engine);
     ma_device_uninit(device);
-    ma_resource_manager_uninit(resource_manager);
     ma_context_uninit(context);
     delete engine;
     delete device;
