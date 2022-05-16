@@ -14,6 +14,7 @@ void register_shinobu_types() {
 	ClassDB::register_virtual_class<ShinobuGodotEffect>();
 	ClassDB::register_virtual_class<ShinobuGodotEffectSpectrumAnalyzer>();
 	ClassDB::register_virtual_class<ShinobuGodotEffectPitchShift>();
+	ClassDB::register_virtual_class<ShinobuGodotEffectChannelRemap>();
 	shinobu_ptr = memnew(ShinobuGodot);
 #ifdef TOOLS_ENABLED
 	// Shinobu has to be initialized manually from GDSCript, but we can't do it

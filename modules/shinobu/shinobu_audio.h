@@ -9,9 +9,11 @@
 #include <memory>
 #include <chrono>
 #include <atomic>
+#include <vector>
 
 #include "shinobu_spectrum_analyzer.h"
 #include "shinobu_pitch_shift.h"
+#include "shinobu_channel_remap.h"
 
 #define SH_RESULT ma_result
 #define SH_SUCCESS MA_SUCCESS
@@ -23,11 +25,45 @@ protected:
     bool initialized;
     ma_engine *engine;
 public:
-    virtual int64_t initialize(uint32_t channelCount) = 0;
+    virtual int64_t initialize(uint32_t channelCount) { return 0; };
     virtual int64_t connect_to_node(ma_node* node) = 0;
     ShinobuAudioEffect(ma_engine *engine) : initialized(false), engine(engine) {};
     virtual ~ShinobuAudioEffect() {};
     virtual ma_node* get_node() = 0;
+};
+
+class ShinobuChannelRemap : public ShinobuAudioEffect {
+private:
+    ma_channel_remap_node* remap_node;
+    std::vector<uint8_t> channelMapIn;
+    std::vector<uint8_t> channelMapOut;
+public:
+    ShinobuChannelRemap(ma_engine *engine) : ShinobuAudioEffect(engine) {
+        remap_node = new ma_channel_remap_node;
+    }
+    ~ShinobuChannelRemap() {
+        ma_channel_remap_node_uninit(remap_node, NULL);
+    }
+
+    int64_t initialize(uint32_t in_channel_count, uint32_t out_channel_count) {
+        ma_channel_remap_node_config mapNodeConfig = ma_channel_remap_node_config_init(ma_engine_get_sample_rate(engine), in_channel_count, out_channel_count);
+        ma_result result = ma_channel_remap_node_init(ma_engine_get_node_graph(engine), &mapNodeConfig, NULL, remap_node);
+        initialized = true;
+        return result;
+    }
+
+    void set_weight(uint8_t channel_in, uint8_t channel_out, float weight) {
+        ma_channel_remap_node_set_weight(remap_node, channel_in, channel_out, weight);
+    }
+
+    int64_t connect_to_node(ma_node* node) override {
+        ma_result res = ma_node_attach_output_bus(remap_node, 0, node, 0);
+        return res;
+    }
+
+    ma_node* get_node() override {
+        return (ma_node*)remap_node;
+    }
 };
 
 class ShinobuSpectrumAnalyzer : public ShinobuAudioEffect {
@@ -161,10 +197,20 @@ class ShinobuSoundPlayback {
     bool looping = false;
     ShinobuClock *clock;
 public:
-    ShinobuSoundPlayback(ma_engine *engine, std::string name, ma_sound_group *sound_group, ShinobuClock *clock)
+    ShinobuSoundPlayback(ma_engine *engine, std::string name, ma_sound_group *sound_group, ShinobuClock *clock, bool use_source_channel_count = false)
     : engine(engine), clock(clock) {
         sound = new ma_sound;
-        result = ma_sound_init_from_file(engine, name.c_str(), 0, sound_group, NULL, sound);
+        ma_sound_config config = ma_sound_config_init();
+        config.pFilePath = name.c_str();
+        config.flags = config.flags | MA_SOUND_FLAG_NO_SPATIALIZATION;
+        if (use_source_channel_count) {
+            config.flags = config.flags | MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT;
+            config.channelsOut = MA_SOUND_SOURCE_CHANNEL_COUNT;
+        } else {
+            config.pInitialAttachment = sound_group;
+        }
+        
+        result = ma_sound_init_ex(engine, &config, sound);
     }
     
     ~ShinobuSoundPlayback() {
@@ -184,6 +230,15 @@ public:
         uint32_t sample_rate;
         ma_sound_get_data_format(sound, NULL, NULL, &sample_rate, NULL, 0);
         return ma_sound_seek_to_pcm_frame(sound, to_time_msec * (float)(sample_rate / 1000.0f));
+    }
+
+    uint32_t get_channel_count() {
+        uint32_t channels;
+        if (ma_sound_get_data_format(sound, NULL, &channels, NULL, NULL, 0) == MA_SUCCESS) {
+            return channels;
+        } else {
+            return 2;
+        }
     }
 
     bool is_playing() {
@@ -276,7 +331,6 @@ public:
     uint64_t connect_effect(ShinobuAudioEffect* m_effect) {
         return ma_node_attach_output_bus(sound, 0, m_effect->get_node(), 0);
     }
-
 };
 class ShinobuAudio {
 private:
@@ -304,7 +358,7 @@ public:
     void unregister_sound(std::string name);
 
     SH_RESULT fire_and_forget_sound(std::string sound_name, std::string group_name);
-    std::unique_ptr<ShinobuSoundPlayback> instantiate_sound(std::string name, std::string group_name);
+    std::unique_ptr<ShinobuSoundPlayback> instantiate_sound(std::string name, std::string group_name, bool use_source_channel_count = false);
     SH_RESULT initialize(ma_backend forced_backend = ma_backend_null);
 
     void set_group_volume(std::string name, float linear_volume);
@@ -321,6 +375,7 @@ public:
     ma_engine* get_engine();
 
     uint64_t connect_group_to_effect(std::string group_name, ShinobuAudioEffect* effect);
+    uint64_t connect_effect_to_group(ShinobuAudioEffect* effect, std::string group_name);
     uint64_t connect_group_to_endpoint(std::string group_name);
 
     std::string get_current_backend_name() const;

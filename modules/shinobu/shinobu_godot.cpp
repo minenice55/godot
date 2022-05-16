@@ -10,7 +10,7 @@ void ShinobuGodot::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("register_sound_from_path", "path", "sound_name"), &ShinobuGodot::register_sound_from_path);
 	ClassDB::bind_method(D_METHOD("register_sound", "audio_file", "sound_name"), &ShinobuGodot::register_sound);
 	ClassDB::bind_method(D_METHOD("unregister_sound", "sound_name"), &ShinobuGodot::unregister_sound);
-	ClassDB::bind_method(D_METHOD("instantiate_sound", "sound_name", "group_name"), &ShinobuGodot::instantiate_sound);
+	ClassDB::bind_method(D_METHOD("instantiate_sound", "sound_name", "group_name", "use_source_channel_count"), &ShinobuGodot::instantiate_sound, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("fire_and_forget_sound", "sound_name", "group_name"), &ShinobuGodot::fire_and_forget_sound);
 	ClassDB::bind_method(D_METHOD("set_group_volume", "group_name", "linear_volume"), &ShinobuGodot::set_group_volume);
 	ClassDB::bind_method(D_METHOD("get_group_volume", "group_name"), &ShinobuGodot::get_group_volume);
@@ -21,10 +21,12 @@ void ShinobuGodot::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::INT, "buffer_size"), "set_buffer_size", "get_buffer_size");
     ClassDB::bind_method(D_METHOD("initialize"), &ShinobuGodot::initialize);
     ClassDB::bind_method(D_METHOD("instantiate_spectrum_analyzer"), &ShinobuGodot::instantiate_spectrum_analyzer);
+    ClassDB::bind_method(D_METHOD("instantiate_channel_remap", "channel_count_in", "channel_count_out"), &ShinobuGodot::instantiate_channel_remap);
     ClassDB::bind_method(D_METHOD("connect_group_to_effect", "group_name", "effect"), &ShinobuGodot::connect_group_to_effect);
     ClassDB::bind_method(D_METHOD("get_actual_buffer_size"), &ShinobuGodot::get_actual_buffer_size);
 	ClassDB::bind_method(D_METHOD("instantiate_pitch_shift"), &ShinobuGodot::instantiate_pitch_shift);
 	ClassDB::bind_method(D_METHOD("connect_effect_to_endpoint", "effect"), &ShinobuGodot::connect_effect_to_endpoint);
+	ClassDB::bind_method(D_METHOD("connect_effect_to_group", "effect", "group"), &ShinobuGodot::connect_effect_to_group);
 	ClassDB::bind_method(D_METHOD("connect_group_to_endpoint", "group_name"), &ShinobuGodot::connect_group_to_endpoint);
 	ClassDB::bind_method(D_METHOD("get_current_backend_name"), &ShinobuGodot::get_current_backend_name);
 
@@ -62,13 +64,12 @@ int64_t ShinobuGodot::register_sound(Ref<ShinobuGodotAudioFile> audio_file, Stri
     return shinobu->register_sound_from_memory(sound_name_str, audio_file->ptr(), audio_file->get_size());
 }
 
-Ref<ShinobuGodotSoundPlayback> ShinobuGodot::instantiate_sound(String sound_name, String group_name) {
-    std::unique_ptr<ShinobuSoundPlayback> playback = shinobu->instantiate_sound(sound_name.utf8().get_data(), group_name.utf8().get_data());
+Ref<ShinobuGodotSoundPlayback> ShinobuGodot::instantiate_sound(String sound_name, String group_name, bool use_source_channel_count) {
+    std::unique_ptr<ShinobuSoundPlayback> playback = shinobu->instantiate_sound(sound_name.utf8().get_data(), group_name.utf8().get_data(), use_source_channel_count);
     ShinobuGodotSoundPlayback* godot_playback = memnew(ShinobuGodotSoundPlayback(std::move(playback)));
     Ref<ShinobuGodotSoundPlayback> out(godot_playback);
     return out;
 }
-
 
 int64_t ShinobuGodot::fire_and_forget_sound(String sound_name, String group_name) {
     return shinobu->fire_and_forget_sound(sound_name.utf8().get_data(), group_name.utf8().get_data());
@@ -116,6 +117,15 @@ Ref<ShinobuGodotEffectPitchShift> ShinobuGodot::instantiate_pitch_shift() {
     return out;
 }
 
+Ref<ShinobuGodotEffectChannelRemap> ShinobuGodot::instantiate_channel_remap(uint32_t channel_count_in, uint32_t channel_count_out) {
+    std::unique_ptr<ShinobuChannelRemap> channel_remap = std::make_unique<ShinobuChannelRemap>(shinobu->get_engine());
+    channel_remap->initialize(channel_count_in, channel_count_out);
+    channel_remap->connect_to_node(ma_engine_get_endpoint(shinobu->get_engine()));
+    ShinobuGodotEffectChannelRemap* godot_channel_remap = memnew(ShinobuGodotEffectChannelRemap(std::move(channel_remap)));
+    Ref<ShinobuGodotEffectChannelRemap> out(godot_channel_remap);
+    return out;
+}
+
 uint64_t ShinobuGodot::connect_group_to_effect(String m_group_name, Ref<ShinobuGodotEffect> m_effect) {
     return shinobu->connect_group_to_effect(m_group_name.utf8().get_data(), m_effect->get_effect());
 }
@@ -126,6 +136,10 @@ uint64_t ShinobuGodot::get_actual_buffer_size() const {
 
 int64_t ShinobuGodot::connect_effect_to_endpoint(Ref<ShinobuGodotEffect> m_effect) {
     return m_effect->get_effect()->connect_to_node(ma_engine_get_endpoint(shinobu->get_engine()));
+}
+
+int64_t ShinobuGodot::connect_effect_to_group(Ref<ShinobuGodotEffect> m_effect, String m_group_name) {
+    return shinobu->connect_effect_to_group(m_effect->get_effect(), m_group_name.utf8().get_data());
 }
 
 int64_t ShinobuGodot::connect_group_to_endpoint(String m_group_name) {

@@ -8,6 +8,7 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 #include "shinobu_spectrum_analyzer.h"
+#include "shinobu_channel_remap.h"
 #include "shinobu_pitch_shift.h"
 #include "miniaudio/extras/miniaudio_libvorbis.h"
 #include "core/os/os.h"
@@ -259,8 +260,8 @@ SH_RESULT ShinobuAudio::fire_and_forget_sound(std::string sound_name, std::strin
     return ma_engine_play_sound(engine, sound_name.c_str(), get_ma_group(group_name));
 }
 
-std::unique_ptr<ShinobuSoundPlayback> ShinobuAudio::instantiate_sound(std::string name, std::string group_name) {
-    return std::make_unique<ShinobuSoundPlayback>(engine, name, get_ma_group(group_name), clock);
+std::unique_ptr<ShinobuSoundPlayback> ShinobuAudio::instantiate_sound(std::string name, std::string group_name, bool use_source_channel_count) {
+    return std::make_unique<ShinobuSoundPlayback>(engine, name, get_ma_group(group_name), clock, use_source_channel_count);
 }
 
 SH_RESULT ShinobuAudio::set_master_volume(float linear_volume) {
@@ -304,6 +305,16 @@ uint64_t ShinobuAudio::connect_group_to_effect(std::string group_name, ShinobuAu
     return MA_BAD_ADDRESS;
 }
 
+uint64_t ShinobuAudio::connect_effect_to_group(ShinobuAudioEffect* effect, std::string group_name) {
+    ShinobuSoundGroup* group = get_group(group_name);
+    ma_sound_group *ma_group = NULL;
+    if (group != NULL) {
+        ma_group = group->get_sound_group();
+        return ma_node_attach_output_bus(effect->get_node(), 0, ma_group, 0);
+    }
+    return MA_BAD_ADDRESS;
+}
+
 uint64_t ShinobuAudio::connect_group_to_endpoint(std::string group_name) {
     ShinobuSoundGroup* group = get_group(group_name);
     ma_sound_group *ma_group = NULL;
@@ -339,7 +350,6 @@ ShinobuAudio::~ShinobuAudio() {
     sound_groups.clear();
     ma_resource_manager_uninit(resource_manager);
     ma_engine_uninit(engine);
-    ma_device_uninit(device);
     ma_context_uninit(context);
     delete engine;
     delete device;

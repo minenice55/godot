@@ -18,6 +18,32 @@ public:
     virtual int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) = 0;
 };
 
+class ShinobuGodotEffectChannelRemap : public ShinobuGodotEffect {
+    GDCLASS(ShinobuGodotEffectChannelRemap, ShinobuGodotEffect);
+    std::unique_ptr<ShinobuChannelRemap> channel_remap;
+
+protected:
+    static void _bind_methods() {
+        ClassDB::bind_method(D_METHOD("set_weight", "channel_in", "channel_out", "weight"), &ShinobuGodotEffectChannelRemap::set_weight);
+    }
+
+public:
+    ShinobuGodotEffectChannelRemap(std::unique_ptr<ShinobuChannelRemap> channel_remap) 
+    : channel_remap(std::move(channel_remap)) {}
+    
+    ShinobuAudioEffect* get_effect() override {
+        return channel_remap.get();
+    }
+
+    void set_weight(uint32_t channel_in, uint32_t channel_out, float weight) {
+        channel_remap->set_weight(channel_in, channel_out, weight);
+    }
+
+    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) override {
+        return channel_remap->connect_to_node(m_effect->get_effect()->get_node());
+    }
+};
+
 class ShinobuGodotEffectSpectrumAnalyzer : public ShinobuGodotEffect {
     GDCLASS(ShinobuGodotEffectSpectrumAnalyzer, ShinobuGodotEffect);
     std::unique_ptr<ShinobuSpectrumAnalyzer> spectrum_analyzer;
@@ -100,10 +126,15 @@ protected:
         ClassDB::bind_method(D_METHOD("set_looping_enabled", "looping_enabled"), &ShinobuGodotSoundPlayback::set_looping_enabled);
 	    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "looping_enabled"), "set_looping_enabled", "get_looping_enabled");
         ClassDB::bind_method(D_METHOD("connect_sound_to_effect", "effect"), &ShinobuGodotSoundPlayback::connect_sound_to_effect);
+        ClassDB::bind_method(D_METHOD("get_channel_count"), &ShinobuGodotSoundPlayback::get_channel_count);
     }
 public:
     ShinobuGodotSoundPlayback(std::unique_ptr<ShinobuSoundPlayback> playback) 
     : playback(std::move(playback)) {}
+
+    uint64_t get_channel_count() const {
+        return playback->get_channel_count();
+    }
 
     uint64_t start() {
         return playback->start();
@@ -224,7 +255,7 @@ public:
     Error register_sound_from_path(String m_path, String m_sound_name);
     int64_t register_sound(Ref<ShinobuGodotAudioFile> audio_file, String m_sound_name);
     void unregister_sound(String m_sound_name);
-    Ref<ShinobuGodotSoundPlayback> instantiate_sound(String sound_name, String group_name);
+    Ref<ShinobuGodotSoundPlayback> instantiate_sound(String sound_name, String group_name, bool use_source_channel_count = false);
     int64_t fire_and_forget_sound(String sound_name, String group_name);
     void set_group_volume(String group_name, float linear_volume);
     float get_group_volume(String group_name);
@@ -237,11 +268,13 @@ public:
 
     Ref<ShinobuGodotEffectSpectrumAnalyzer> instantiate_spectrum_analyzer();
     Ref<ShinobuGodotEffectPitchShift> instantiate_pitch_shift();
+    Ref<ShinobuGodotEffectChannelRemap> instantiate_channel_remap(uint32_t channel_count_in, uint32_t channel_count_out);
 
     uint64_t connect_group_to_effect(String m_group_name, Ref<ShinobuGodotEffect> m_effect);
 
     uint64_t get_actual_buffer_size() const;
     int64_t connect_effect_to_endpoint(Ref<ShinobuGodotEffect> m_effect);
+    int64_t connect_effect_to_group(Ref<ShinobuGodotEffect> m_effect, String m_group_name);
     int64_t connect_group_to_endpoint(String m_group_name);
 
     String get_current_backend_name() const;
