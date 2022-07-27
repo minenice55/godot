@@ -201,6 +201,7 @@ class ShinobuGodotAudioFile : public Reference {
 protected:
 	static void _bind_methods() {
         ClassDB::bind_method(D_METHOD("load_from_file", "file_path"), &ShinobuGodotAudioFile::load_from_file);
+        ClassDB::bind_method(D_METHOD("load_from_memory", "data"), &ShinobuGodotAudioFile::load_from_memory);
         ClassDB::bind_method(D_METHOD("get_size"), &ShinobuGodotAudioFile::get_size);
     }
 
@@ -219,6 +220,13 @@ public:
         memdelete(f);
 
         return err;
+    }
+
+    void load_from_memory(const PoolVector<uint8_t> &p_data) {
+        data = new uint8_t[p_data.size()];
+        size = p_data.size();
+        // Copy sound data so we own it
+        memcpy(data, p_data.read().ptr(), p_data.size());
     }
 
     const uint8_t* ptr() {
