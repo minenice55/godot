@@ -31,7 +31,7 @@ public:
     ShinobuGodotEffectChannelRemap(std::unique_ptr<ShinobuChannelRemap> channel_remap) 
     : channel_remap(std::move(channel_remap)) {}
     
-    ShinobuAudioEffect* get_effect() override {
+    ShinobuAudioEffect* get_effect() {
         return channel_remap.get();
     }
 
@@ -39,7 +39,7 @@ public:
         channel_remap->set_weight(channel_in, channel_out, weight);
     }
 
-    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) override {
+    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) {
         return channel_remap->connect_to_node(m_effect->get_effect()->get_node());
     }
 };
@@ -57,11 +57,11 @@ public:
     ShinobuGodotEffectSpectrumAnalyzer(std::unique_ptr<ShinobuSpectrumAnalyzer> spectrum_analyzer) 
     : spectrum_analyzer(std::move(spectrum_analyzer)) {}
     
-    ShinobuAudioEffect* get_effect() override {
+    ShinobuAudioEffect* get_effect() {
         return spectrum_analyzer.get();
     }
 
-    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) override {
+    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) {
         return spectrum_analyzer->connect_to_node(m_effect->get_effect()->get_node());
     }
 
@@ -94,11 +94,11 @@ public:
         pitch_shift->set_pitch_scale(pitch_scale);
     }
 
-    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) override {
+    int64_t connect_to_effect(Ref<ShinobuGodotEffect> m_effect) {
         return pitch_shift->connect_to_node(m_effect->get_effect()->get_node());
     }
 
-    ShinobuAudioEffect* get_effect() override {
+    ShinobuAudioEffect* get_effect() {
         return pitch_shift.get();
     }
 };

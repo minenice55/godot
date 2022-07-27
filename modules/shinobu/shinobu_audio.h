@@ -26,6 +26,7 @@ protected:
     ma_engine *engine;
 public:
     virtual int64_t initialize(uint32_t channelCount) { return 0; };
+    virtual int64_t initialize(uint32_t in_channel_count, uint32_t out_channel_count) { return 0; };
     virtual int64_t connect_to_node(ma_node* node) = 0;
     ShinobuAudioEffect(ma_engine *engine) : initialized(false), engine(engine) {};
     virtual ~ShinobuAudioEffect() {};
@@ -45,7 +46,7 @@ public:
         ma_channel_remap_node_uninit(remap_node, NULL);
     }
 
-    int64_t initialize(uint32_t in_channel_count, uint32_t out_channel_count) {
+    int64_t initialize(uint32_t in_channel_count, uint32_t out_channel_count) override {
         ma_channel_remap_node_config mapNodeConfig = ma_channel_remap_node_config_init(ma_engine_get_sample_rate(engine), in_channel_count, out_channel_count);
         ma_result result = ma_channel_remap_node_init(ma_engine_get_node_graph(engine), &mapNodeConfig, NULL, remap_node);
         initialized = true;
